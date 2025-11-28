@@ -7,6 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+
 model repository {
   repo_id        BigInt    @id
   name           String?   @db.VarChar(255)
@@ -29,6 +30,11 @@ model repository {
   projectRepositories ProjectRepository[]
   codeSummaries       CodeSummary[]
   tasks               Task[]
+
+  summaries   Summary[]
+  embeddings  Embedding[]
+  contextMeta ContextMeta?
+  graph       Graph?
 }
 
 model commit {
@@ -76,6 +82,7 @@ model pull {
   repository repository? @relation(fields: [repo_id], references: [repo_id], onDelete: Cascade, onUpdate: NoAction)
 }
 
+
 model Project {
   id          Int     @id @default(autoincrement())
   name        String
@@ -90,7 +97,6 @@ model Project {
 
   createdAt DateTime @default(now())
 }
-
 
 model ProjectMember {
   id        Int      @id @default(autoincrement())
@@ -133,10 +139,9 @@ model Task {
   repo_id        BigInt?
   title          String
   description    String?
-  status         TaskStatus @default(UNDONE) //enum
+  status         TaskStatus @default(UNDONE)
   assigneeUserId Int? 
-  assignee    User?      @relation(fields: [assigneeUserId],references: [id])
-
+  assignee       User?      @relation(fields: [assigneeUserId],references: [id])
 
   source String  @default("AI")
   runId  String? 
@@ -154,6 +159,49 @@ enum TaskStatus {
   DONE
 }
 
+
+model Summary {
+  id        Int      @id @default(autoincrement())
+  repo_id   BigInt
+  filePath  String
+  summary   String
+  keywords  String[]
+  quality   Float?
+  createdAt DateTime @default(now())
+
+  repository repository @relation(fields: [repo_id], references: [repo_id], onDelete: Cascade)
+  embedding  Embedding?
+}
+model Embedding {
+  id          Int     @id @default(autoincrement())
+  summaryId   Int     @unique
+  fusedVector Json
+  rawEdges    Json
+
+  summary     Summary @relation(fields: [summaryId], references: [id])
+  repo_id     BigInt
+  repository  repository @relation(fields: [repo_id], references: [repo_id], onDelete: Cascade)
+}
+
+
+model ContextMeta {
+  id        Int      @id @default(autoincrement())
+  repo_id   BigInt   @unique
+  metaJson  Json
+  createdAt DateTime @default(now())
+
+  repository repository @relation(fields: [repo_id], references: [repo_id], onDelete: Cascade)
+}
+
+model Graph {
+  id        Int      @id @default(autoincrement())
+  repo_id   BigInt   @unique
+  graphJson Json
+  createdAt DateTime @default(now())
+
+  repository repository @relation(fields: [repo_id], references: [repo_id], onDelete: Cascade)
+}
+
 model User {
   id             Int              @id @default(autoincrement())
   githubId       String           @unique
@@ -162,8 +210,8 @@ model User {
   name           String?
   email          String?
   createdAt      DateTime         @default(now())
+
   ownedProjects Project[]         @relation("UserOwnedProjects")
   projectMembers ProjectMember[]  @relation("UserProjectMembers")
   tasks         Task[]
 }
-

@@ -1,23 +1,34 @@
+import axios from "axios";
 import prisma from "../../prisma";
 
-export const saveAISummaries = async (data: any) => {
-  const { projectId, runId, summaries } = data;
+const AI_SERVER = process.env.AI_SERVER;
 
-  if (!Array.isArray(summaries)) {
-    throw new Error("summaries must be an array");
-  }
+interface SummaryParams {
+  filePath: string;
+  content: string;
+  repoId?: bigint;
+  projectId?: number;
+}
 
-  const created = await prisma.codeSummary.createMany({
-    data: summaries.map((s: any) => ({
-      projectId,
-      repo_id: s.repo_id ? BigInt(s.repo_id) : null,
-      runId,
-      targetId: s.target_id,
-      level: s.level,
-      summaryText: s.text,
-      modelName: s.model,
-    })),
+export const createSummary = async (params: SummaryParams) => {
+  const { filePath, content, repoId, projectId } = params;
+
+  const response = await axios.post(`${AI_SERVER}/summarize`, {
+    file_name: filePath,
+    content,
   });
 
-  return created;
+  const data = response.data;
+
+  const saved = await prisma.codeSummary.create({
+    data: {
+      projectId: projectId ?? 1,
+      repo_id: repoId ?? undefined,
+      targetId: filePath,
+      level: "file",
+      summaryText: data.unified_summary,
+    },
+  });
+
+  return saved;
 };

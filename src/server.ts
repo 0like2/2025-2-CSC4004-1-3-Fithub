@@ -9,6 +9,7 @@ import aiTaskRoutes from "./routes/aiTaskRoutes";
 import summaryRoutes from "./routes/summaryRoutes";
 import taskRoutes from "./routes/taskRoutes";
 import authRoutes from "./routes/authRoutes";
+import repoAnalysisRoutes from "./routes/repoAnalysisRoutes";
 import swaggerUi from "swagger-ui-express";
 import YAML from "yamljs";
 import dotenv from "dotenv";
@@ -48,7 +49,7 @@ app.use("/ai/tasks", aiTaskRoutes);
 app.use("/summaries", summaryRoutes);
 app.use("/tasks", taskRoutes);
 app.use("/api/github", githubRoutes);
-
+app.use("/api/repo",repoAnalysisRoutes);
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 4000;

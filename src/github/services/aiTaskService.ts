@@ -1,24 +1,33 @@
+import axios from "axios";
 import prisma from "../../prisma";
 
-export const saveAITasks = async (data: any) => {
-  const { projectId, tasks, runId } = data;
+const AI_SERVER = process.env.AI_SERVER;
+interface GenerateTasksParams {
+  summaries: any[];   
+  graph: any;         //Graph JSON
+  context: any;       //ContextMeta JSON
+  repoId?: bigint;    
+}
 
-  if (!Array.isArray(tasks)) {
-    throw new Error("tasks must be an array");
-  }
+export const generateTasks = async (params: GenerateTasksParams) => {
+  const { summaries, graph, context } = params;
 
-  const created = await prisma.task.createMany({
+  const response = await axios.post(`${AI_SERVER}/tasks`, {
+    repo_summaries: summaries,
+    graph_json: graph,
+    context_meta: context,
+  });
+
+  const tasks = response.data.tasks;
+
+  await prisma.task.createMany({
     data: tasks.map((t: any) => ({
-      projectId,
-      repo_id: t.repo_id ? BigInt(t.repo_id) : null,
       title: t.title,
       description: t.description,
-      status: "UNDONE",
-      assigneeUserId: t.assigneeUserId || null,
-      source: "AI",
-      runId,
+      role: t.role ?? "Unknown",
+      priority: t.priority ?? "Medium",
     })),
   });
 
-  return created;
+  return tasks;
 };
