@@ -1,0 +1,169 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model repository {
+  repo_id        BigInt    @id
+  name           String?   @db.VarChar(255)
+  full_name      String?   @db.VarChar(255)
+  private        Boolean?
+  html_url       String?
+  description    String?
+  default_branch String?   @db.VarChar(255)
+  language       String?   @db.VarChar(255)
+  created_at     DateTime? @db.Timestamp(6)
+  updated_at     DateTime? @db.Timestamp(6)
+  pushed_at      DateTime? @db.Timestamp(6)
+  owner_login    String?   @db.VarChar(255)
+
+  commits commit[]
+  files   file[]
+  issues  issue[]
+  pulls   pull[]
+
+  projectRepositories ProjectRepository[]
+  codeSummaries       CodeSummary[]
+  tasks               Task[]
+}
+
+model commit {
+  commit_sha   String    @id @db.VarChar(255)
+  repo_id      BigInt?
+  author_name  String?   @db.VarChar(255)
+  author_email String?   @db.VarChar(255)
+  date         DateTime? @db.Timestamp(6)
+  message      String?
+  parent_sha   String?   @db.VarChar(255)
+
+  repository repository? @relation(fields: [repo_id], references: [repo_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model file {
+  file_id String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  repo_id BigInt?
+  path    String
+  sha     String? @db.VarChar(255)
+  size    Int?
+  type    String? @db.VarChar(50)
+
+  repository repository? @relation(fields: [repo_id], references: [repo_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model issue {
+  issue_id   Int       @id
+  repo_id    BigInt?
+  title      String?
+  state      String?   @db.VarChar(50)
+  created_at DateTime? @db.Timestamp(6)
+  closed_at  DateTime? @db.Timestamp(6)
+
+  repository repository? @relation(fields: [repo_id], references: [repo_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model pull {
+  pull_id    Int       @id
+  repo_id    BigInt?
+  title      String?
+  state      String?   @db.VarChar(50)
+  created_at DateTime? @db.Timestamp(6)
+  closed_at  DateTime? @db.Timestamp(6)
+
+  repository repository? @relation(fields: [repo_id], references: [repo_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model Project {
+  id          Int     @id @default(autoincrement())
+  name        String
+  description String?
+  ownerId     Int 
+  owner       User    @relation("UserOwnedProjects", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  members   ProjectMember[]
+  repos     ProjectRepository[]
+  summaries CodeSummary[]
+  tasks     Task[]
+
+  createdAt DateTime @default(now())
+}
+
+
+model ProjectMember {
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  userId    Int
+  role      String   @default("MEMBER")
+
+  project   Project @relation(fields: [projectId], references: [id])
+  user      User    @relation("UserProjectMembers", fields: [userId], references: [id])
+}
+
+model ProjectRepository {
+  id        Int    @id @default(autoincrement())
+  projectId Int
+  repo_id   BigInt 
+
+  project Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  repo    repository @relation(fields: [repo_id], references: [repo_id], onDelete: Cascade)
+}
+
+model CodeSummary {
+  id          Int     @id @default(autoincrement())
+  projectId   Int
+  repo_id     BigInt?
+  runId       String?
+  targetId    String 
+  level       String 
+  summaryText String
+  modelName   String? 
+
+  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  repository repository? @relation(fields: [repo_id], references: [repo_id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+}
+
+model Task {
+  id             Int        @id @default(autoincrement())
+  projectId      Int
+  repo_id        BigInt?
+  title          String
+  description    String?
+  status         TaskStatus @default(UNDONE) //enum
+  assigneeUserId Int? 
+  assignee    User?      @relation(fields: [assigneeUserId],references: [id])
+
+
+  source String  @default("AI")
+  runId  String? 
+
+  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  repository repository? @relation(fields: [repo_id], references: [repo_id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum TaskStatus {
+  UNDONE
+  IN_PROGRESS
+  DONE
+}
+
+model User {
+  id             Int              @id @default(autoincrement())
+  githubId       String           @unique
+  login          String
+  avatarUrl      String?
+  name           String?
+  email          String?
+  createdAt      DateTime         @default(now())
+  ownedProjects Project[]         @relation("UserOwnedProjects")
+  projectMembers ProjectMember[]  @relation("UserProjectMembers")
+  tasks         Task[]
+}
+
